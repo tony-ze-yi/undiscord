@@ -646,7 +646,7 @@
                         <a href="{{WIKI}}/delay" title="Help" target="_blank">help</a>
                     </legend>
                     <div class="input-wrapper">
-                        <input id="deleteDelay" type="number" value="1000" step="100">
+                        <input id="deleteDelay" type="number" value="5000" step="1000">
                     </div>
                     <br>
                     <div class="sectionDescription">
@@ -722,6 +722,7 @@
     let throttledTotalTime = 0;
     let offset = 0;
     let iterations = -1;
+    let failed_values = [];
 
     const wait = async ms => new Promise(done => setTimeout(done, ms));
     const msToHMS = s => `${s / 3.6e6 | 0}h ${(s % 3.6e6) / 6e4 | 0}m ${(s % 6e4) / 1000 | 0}s`;
@@ -819,7 +820,8 @@
       if (!grandTotal) grandTotal = total;
       const discoveredMessages = data.messages.map(convo => convo.find(message => message.hit === true));
       const messagesToDelete = discoveredMessages.filter(msg => {
-        return (msg.type === 0 || (msg.type >= 6 && msg.type <= 21) || (msg.pinned && includePinned)) && (!regex || msg.content.match(regex));
+        log.debug(failed_values);
+        return (msg.type === 0 || (msg.type >= 6 && msg.type <= 21) || (msg.pinned && includePinned)) && (!regex || msg.content.match(regex)) && (failed_values.includes(msg.id));
       });
       const skippedMessages = discoveredMessages.filter(msg => !messagesToDelete.find(m => m.id === msg.id));
 
@@ -886,7 +888,9 @@
               i--; // retry
             } else {
               log.error(`Error deleting message, API responded with status ${resp.status}!`, await resp.json());
-              log.verb('Related object:', redact(JSON.stringify(message)));
+              let error_msg = JSON.stringify(message);
+              failed_values.push(error_msg.id);
+              log.verb('Related object:', redact(error_msg));
               failCount++;
             }
           }
